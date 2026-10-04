@@ -1,0 +1,2390 @@
+{% extends "base.html" %}
+
+{% block title %}School Management Portal - EduSphere{% endblock %}
+
+{% block extra_head %}
+<style>
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .sidebar-link.active {
+        background-color: #4f46e5;
+        color: #ffffff;
+    }
+    .sidebar-link.active i {
+        color: #ffffff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col bg-slate-100">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between">
+            
+            <!-- School Brand -->
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleMobileSidebar()" class="lg:hidden text-slate-500 hover:text-slate-700 p-1.5 rounded-lg focus:outline-none">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md shadow-indigo-500/20">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-bold text-slate-800 text-lg tracking-tight">Apex Academy</span>
+                        <span class="hidden sm:inline-block px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700 rounded-full">
+                            <i class="fa-solid fa-circle text-[7px] mr-1 text-emerald-500 animate-pulse"></i>Live System
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">Production School Management Portal</p>
+                </div>
+            </div>
+
+            <!-- Middle: Live Role Switcher (Crucial for Demoing Permissions) -->
+            <div class="hidden md:flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+                <span class="text-[11px] font-semibold text-slate-500 px-2.5 flex items-center gap-1">
+                    <i class="fa-solid fa-sliders text-indigo-500"></i> Role Demo:
+                </span>
+                <button onclick="switchRole('PRINCIPAL')" id="btn-demo-principal"
+                    class="px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 {% if is_principal %}bg-indigo-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-200{% endif %}">
+                    <i class="fa-solid fa-crown text-amber-300 text-xs"></i>
+                    <span>Principal</span>
+                </button>
+                <button onclick="switchRole('TEACHER')" id="btn-demo-teacher"
+                    class="px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 {% if is_teacher %}bg-emerald-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-200{% endif %}">
+                    <i class="fa-solid fa-chalkboard-user text-xs"></i>
+                    <span>Teacher</span>
+                </button>
+                <button onclick="switchRole('STUDENT')" id="btn-demo-student"
+                    class="px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 {% if is_student %}bg-sky-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-200{% endif %}">
+                    <i class="fa-solid fa-user-graduate text-xs"></i>
+                    <span>Student</span>
+                </button>
+            </div>
+
+            <!-- Right Controls: Live Clock & User Profile -->
+            <div class="flex items-center space-x-3 sm:space-x-4">
+                <div class="hidden xl:flex flex-col text-right">
+                    <span id="liveClock" class="text-xs font-semibold text-slate-700 font-mono">--:--:--</span>
+                    <span id="liveDate" class="text-[10px] text-slate-400">Loading date...</span>
+                </div>
+
+                <!-- User Role Pill & Avatar -->
+                <div class="flex items-center space-x-3 pl-3 border-l border-slate-200">
+                    <div class="text-right hidden sm:block">
+                        <p id="navUserName" class="text-xs font-bold text-slate-800 leading-tight">
+                            {{ user.get_full_name|default:user.username }}
+                        </p>
+                        <span id="navRoleBadge" class="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 
+                            {% if is_principal %}bg-indigo-100 text-indigo-700 border border-indigo-200
+                            {% elif is_teacher %}bg-emerald-100 text-emerald-700 border border-emerald-200
+                            {% else %}bg-sky-100 text-sky-700 border border-sky-200{% endif %}">
+                            {% if is_principal %}<i class="fa-solid fa-crown text-[9px] mr-1 text-amber-500"></i>Principal
+                            {% elif is_teacher %}<i class="fa-solid fa-chalkboard-user text-[9px] mr-1"></i>Teacher
+                            {% else %}<i class="fa-solid fa-user-graduate text-[9px] mr-1"></i>Student{% endif %}
+                        </span>
+                    </div>
+
+                    <div class="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+                        {{ user.first_name|default:user.username|make_list|first|upper }}
+                    </div>
+
+                    <a href="/logout/" title="Sign out"
+                        class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                        <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Mobile Demo Switcher Bar -->
+        <div class="md:hidden flex items-center justify-around bg-slate-50 border-t border-slate-200 px-3 py-1.5 text-xs">
+            <span class="font-medium text-slate-500 text-[11px]">Role Demo:</span>
+            <button onclick="switchRole('PRINCIPAL')" class="px-2 py-0.5 rounded font-semibold {% if is_principal %}bg-indigo-600 text-white{% else %}text-slate-600{% endif %}">👑 Principal</button>
+            <button onclick="switchRole('TEACHER')" class="px-2 py-0.5 rounded font-semibold {% if is_teacher %}bg-emerald-600 text-white{% else %}text-slate-600{% endif %}">👨‍🏫 Teacher</button>
+            <button onclick="switchRole('STUDENT')" class="px-2 py-0.5 rounded font-semibold {% if is_student %}bg-sky-600 text-white{% else %}text-slate-600{% endif %}">🎓 Student</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <div class="flex-1 flex overflow-hidden">
+
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-20 w-64 bg-slate-900 text-slate-300 transform -translate-x-full lg:translate-x-0 lg:static lg:inset-auto transition-transform duration-200 ease-in-out flex flex-col justify-between shadow-xl lg:shadow-none">
+            
+            <div class="p-4 space-y-6 overflow-y-auto">
+                
+                <!-- Role Status Banner inside Sidebar -->
+                <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg
+                        {% if is_principal %}bg-indigo-500/20 text-indigo-400
+                        {% elif is_teacher %}bg-emerald-500/20 text-emerald-400
+                        {% else %}bg-sky-500/20 text-sky-400{% endif %}">
+                        {% if is_principal %}<i class="fa-solid fa-shield-halved"></i>
+                        {% elif is_teacher %}<i class="fa-solid fa-chalkboard"></i>
+                        {% else %}<i class="fa-solid fa-id-card"></i>{% endif %}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold text-white truncate" id="sidebarRoleTitle">
+                            {% if is_principal %}Principal Panel
+                            {% elif is_teacher %}Faculty Panel
+                            {% else %}Student Portal{% endif %}
+                        </p>
+                        <p class="text-[11px] text-slate-400 truncate" id="sidebarRoleDesc">
+                            {% if is_principal %}Full School Authority
+                            {% elif is_teacher %}Academics & Attendance
+                            {% else %}Personal Academic View{% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Navigation Links List -->
+                <nav class="space-y-1" id="navLinksContainer">
+                    <!-- Dynamically populated or rendered based on role -->
+                    {% if is_principal %}
+                        <!-- PRINCIPAL MENUS -->
+                        <div class="px-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Management Core</div>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-overview')" class="sidebar-link active flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-chart-pie w-5 text-indigo-400"></i>
+                            <span>Overview & KPIs</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-students')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-user-group w-5 text-indigo-400"></i>
+                            <span>Student Directory</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-teachers')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-chalkboard-user w-5 text-indigo-400"></i>
+                            <span>Faculty & Staff</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-academics')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-shapes w-5 text-indigo-400"></i>
+                            <span>Academics & Classes</span>
+                        </a>
+
+                        <div class="pt-4 px-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Operations</div>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-attendance')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-calendar-check w-5 text-indigo-400"></i>
+                            <span>School Attendance</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-fees')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-receipt w-5 text-indigo-400"></i>
+                            <span>Fees & Payments</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-leaves')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white justify-between">
+                            <div class="flex items-center space-x-3">
+                                <i class="fa-solid fa-envelope-open-text w-5 text-indigo-400"></i>
+                                <span>Leave Approvals</span>
+                            </div>
+                            <span id="navLeaveBadge" class="hidden px-2 py-0.5 text-[10px] font-bold bg-amber-500 text-slate-950 rounded-full">0</span>
+                        </a>
+
+                    {% elif is_teacher %}
+                        <!-- TEACHER MENUS -->
+                        <div class="px-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Teacher Workplace</div>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-teacher-home')" class="sidebar-link active flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-house w-5 text-emerald-400"></i>
+                            <span>Faculty Home</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-teacher-attendance')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-calendar-check w-5 text-emerald-400"></i>
+                            <span>Mark Attendance</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-teacher-classes')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-users-rectangle w-5 text-emerald-400"></i>
+                            <span>My Classes & Students</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-teacher-leaves')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-calendar-minus w-5 text-emerald-400"></i>
+                            <span>My Leave Requests</span>
+                        </a>
+
+                        <div class="pt-4 px-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Access Boundaries</div>
+                        <a href="javascript:void(0)" onclick="showLockedFeature('Fees Management', 'Principal & Accounts Office')" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-400 hover:bg-slate-800/40">
+                            <i class="fa-solid fa-lock w-5 text-slate-600"></i>
+                            <span>Fee Management</span>
+                            <span class="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">Locked</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="showLockedFeature('Academic Master Config', 'Principal')" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-400 hover:bg-slate-800/40">
+                            <i class="fa-solid fa-lock w-5 text-slate-600"></i>
+                            <span>System Settings</span>
+                            <span class="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">Locked</span>
+                        </a>
+
+                    {% else %}
+                        <!-- STUDENT MENUS -->
+                        <div class="px-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Student Space</div>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-student-profile')" class="sidebar-link active flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-id-badge w-5 text-sky-400"></i>
+                            <span>My Profile & Card</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-student-attendance')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-calendar-check w-5 text-sky-400"></i>
+                            <span>My Attendance</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-student-fees')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-receipt w-5 text-sky-400"></i>
+                            <span>My Fees & Receipts</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="switchTab('tab-student-academics')" class="sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
+                            <i class="fa-solid fa-book-open w-5 text-sky-400"></i>
+                            <span>Subjects & Teachers</span>
+                        </a>
+
+                        <div class="pt-4 px-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Permissions</div>
+                        <div class="p-3 bg-slate-800/40 rounded-xl border border-slate-700/40 text-[11px] text-slate-400">
+                            <i class="fa-solid fa-shield text-sky-400 mr-1"></i>
+                            Student read-only mode active. Master records are protected.
+                        </div>
+                    {% endif %}
+                </nav>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-4 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                <span>Apex Academy v2.5</span>
+                <span class="text-emerald-400"><i class="fa-solid fa-lock"></i> RBAC Enforced</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+
+            <!-- Security Permission Banner -->
+            <div class="mb-6 p-4 rounded-2xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 
+                {% if is_principal %}bg-indigo-50/60 border-indigo-200/80 text-indigo-950
+                {% elif is_teacher %}bg-emerald-50/60 border-emerald-200/80 text-emerald-950
+                {% else %}bg-sky-50/60 border-sky-200/80 text-sky-950{% endif %}">
+                <div class="flex items-center space-x-3.5">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm
+                        {% if is_principal %}bg-indigo-600 text-white
+                        {% elif is_teacher %}bg-emerald-600 text-white
+                        {% else %}bg-sky-600 text-white{% endif %}">
+                        {% if is_principal %}<i class="fa-solid fa-crown"></i>
+                        {% elif is_teacher %}<i class="fa-solid fa-chalkboard-user"></i>
+                        {% else %}<i class="fa-solid fa-user-graduate"></i>{% endif %}
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="font-bold text-base">
+                                {% if is_principal %}Principal Administrator Workspace
+                                {% elif is_teacher %}Teacher Academic Portal
+                                {% else %}Student Information Center{% endif %}
+                            </h2>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full
+                                {% if is_principal %}bg-indigo-200/80 text-indigo-800
+                                {% elif is_teacher %}bg-emerald-200/80 text-emerald-800
+                                {% else %}bg-sky-200/80 text-sky-800{% endif %}">
+                                {% if is_principal %}Full Control
+                                {% elif is_teacher %}Attendance & Leaves
+                                {% else %}Personal Records Only{% endif %}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-600 mt-0.5">
+                            {% if is_principal %}You have unrestricted authority: view all students, admit pupils, assign teachers, record fees, and approve faculty leaves.
+                            {% elif is_teacher %}You can manage attendance for your assigned classes (10-A, 9-A), view class students, and apply for leaves.
+                            {% else %}You can view your personal academic timetable, your attendance history, and fee invoices.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 self-end sm:self-center">
+                    <button onclick="refreshData()" class="px-3 py-1.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all">
+                        <i class="fa-solid fa-arrows-rotate text-indigo-600" id="refreshIcon"></i>
+                        <span>Sync Live Data</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- PRINCIPAL TABS -->
+            <!-- ========================================== -->
+            {% if is_principal %}
+
+                <!-- Tab: Overview -->
+                <div id="tab-overview" class="tab-content active space-y-6 fade-in">
+                    <!-- KPI Cards Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Enrolled</p>
+                                <h3 class="text-2xl font-bold text-slate-800 mt-1" id="kpi-students">--</h3>
+                                <p class="text-[11px] text-emerald-600 font-medium mt-1"><i class="fa-solid fa-arrow-up"></i> Active students</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-user-group"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Teaching Faculty</p>
+                                <h3 class="text-2xl font-bold text-slate-800 mt-1" id="kpi-teachers">--</h3>
+                                <p class="text-[11px] text-indigo-600 font-medium mt-1"><i class="fa-solid fa-chalkboard-user"></i> Certified staff</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today's Attendance</p>
+                                <h3 class="text-2xl font-bold text-slate-800 mt-1" id="kpi-attendance-rate">--%</h3>
+                                <p class="text-[11px] text-slate-500 font-medium mt-1" id="kpi-att-sub">Present today</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-calendar-check"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pending Leaves</p>
+                                <h3 class="text-2xl font-bold text-slate-800 mt-1" id="kpi-pending-leaves">--</h3>
+                                <p class="text-[11px] text-amber-600 font-medium mt-1"><i class="fa-solid fa-clock"></i> Needs your review</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-envelope-open-text"></i>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Charts & Financial Overview -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- Fees Overview Card -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-slate-800 text-sm">Fee Collection Progress</h3>
+                                <span class="text-xs font-semibold text-indigo-600">INR (₹)</span>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-xs font-medium text-slate-500 mb-1">
+                                        <span>Total Expected</span>
+                                        <span class="font-bold text-slate-800" id="fee-total-expected">₹0</span>
+                                    </div>
+                                    <div class="flex justify-between text-xs font-medium text-slate-500 mb-1">
+                                        <span class="text-emerald-600 font-semibold">Collected to Date</span>
+                                        <span class="font-bold text-emerald-600" id="fee-total-collected">₹0</span>
+                                    </div>
+                                    <div class="flex justify-between text-xs font-medium text-slate-500 mb-2">
+                                        <span class="text-rose-600 font-semibold">Outstanding Due</span>
+                                        <span class="font-bold text-rose-600" id="fee-total-pending">₹0</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden flex">
+                                        <div id="feeProgressBar" class="bg-emerald-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="pt-4 border-t border-slate-100 flex gap-2">
+                                    <button onclick="switchTab('tab-fees')" class="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl transition-colors">
+                                        View Fee Ledger
+                                    </button>
+                                    <button onclick="openModal('modalRecordPayment')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors">
+                                        + Record Payment
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Real-time Attendance Breakdown Chart -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-slate-800 text-sm">Attendance Summary Today</h3>
+                                <span class="text-xs text-slate-400" id="chartDateLabel">Today</span>
+                            </div>
+                            <div class="h-56 relative flex items-center justify-center">
+                                <canvas id="attendanceChart"></canvas>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Quick Principal Actions Bar -->
+                    <div class="bg-gradient-to-r from-indigo-900 to-slate-900 p-6 rounded-2xl text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-lg font-bold">Principal Executive Actions</h3>
+                            <p class="text-xs text-indigo-200 mt-0.5">Quickly perform administrative tasks across all modules</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2.5">
+                            <button onclick="openModal('modalAdmitStudent')" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-plus text-xs"></i>
+                                <span>Admit Student</span>
+                            </button>
+                            <button onclick="openModal('modalAddTeacher')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-tie text-xs"></i>
+                                <span>Hire Teacher</span>
+                            </button>
+                            <button onclick="switchTab('tab-leaves')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                                <i class="fa-solid fa-check-double text-xs"></i>
+                                <span>Review Leaves</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Students Directory -->
+                <div id="tab-students" class="tab-content space-y-4 fade-in">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Student Directory & Admissions</h3>
+                            <p class="text-xs text-slate-500">Manage all registered students and their enrollments</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="studentSearchInput" oninput="loadStudents()" placeholder="Search student name or admission #"
+                                class="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 w-56">
+                            <button onclick="openModal('modalAdmitStudent')" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-plus"></i>
+                                <span>Admit Student</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-600">
+                                <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3.5">Admission #</th>
+                                        <th class="px-4 py-3.5">Student Name</th>
+                                        <th class="px-4 py-3.5">Class & Section</th>
+                                        <th class="px-4 py-3.5">Roll #</th>
+                                        <th class="px-4 py-3.5">Gender / Blood</th>
+                                        <th class="px-4 py-3.5">Guardian Phone</th>
+                                        <th class="px-4 py-3.5">Status</th>
+                                        <th class="px-4 py-3.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentsTableBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="8" class="text-center py-6 text-slate-400">Loading student directory...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Faculty & Staff -->
+                <div id="tab-teachers" class="tab-content space-y-4 fade-in">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Faculty & Teacher Directory</h3>
+                            <p class="text-xs text-slate-500">School teachers, designations, and class assignments</p>
+                        </div>
+                        <button onclick="openModal('modalAddTeacher')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm flex items-center gap-1.5 self-start sm:self-auto">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>Register New Teacher</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="teachersCardsContainer">
+                        <div class="text-center py-6 text-slate-400 col-span-full">Loading teachers...</div>
+                    </div>
+                </div>
+
+                <!-- Tab: Academics & Classes -->
+                <div id="tab-academics" class="tab-content space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Academics Management</h3>
+                            <p class="text-xs text-slate-500">Classes, Sections, and Academic Subjects</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Classes and Sections -->
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i class="fa-solid fa-school text-indigo-600"></i> Active Classes & Sections
+                                </h4>
+                            </div>
+                            <div class="space-y-3" id="classesListContainer">
+                                <div class="text-center py-4 text-slate-400 text-xs">Loading classes...</div>
+                            </div>
+                        </div>
+
+                        <!-- Subjects -->
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i class="fa-solid fa-book text-emerald-600"></i> Curriculum Subjects
+                                </h4>
+                            </div>
+                            <div class="space-y-2" id="subjectsListContainer">
+                                <div class="text-center py-4 text-slate-400 text-xs">Loading subjects...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Attendance (Principal School-wide View) -->
+                <div id="tab-attendance" class="tab-content space-y-4 fade-in">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">School-Wide Attendance Monitor</h3>
+                            <p class="text-xs text-slate-500">Inspect daily attendance records across all sections</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="principalAttDateInput" onchange="loadPrincipalAttendance()"
+                                class="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-600">
+                                <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3.5">Date</th>
+                                        <th class="px-4 py-3.5">Admission #</th>
+                                        <th class="px-4 py-3.5">Student Name</th>
+                                        <th class="px-4 py-3.5">Class - Section</th>
+                                        <th class="px-4 py-3.5">Status</th>
+                                        <th class="px-4 py-3.5">Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="principalAttendanceTableBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-6 text-slate-400">Loading attendance...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Fees & Payments -->
+                <div id="tab-fees" class="tab-content space-y-6 fade-in">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Fee Structures & Student Accounts</h3>
+                            <p class="text-xs text-slate-500">Manage school fee packages and record student tuition collections</p>
+                        </div>
+                        <button onclick="openModal('modalRecordPayment')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm flex items-center gap-1.5 self-start sm:self-auto">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Record Student Payment</span>
+                        </button>
+                    </div>
+
+                    <!-- Fee Structures Cards -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Active Fee Structures</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="feeStructuresCards">
+                            <div class="text-center py-4 text-slate-400 text-xs col-span-full">Loading fee structures...</div>
+                        </div>
+                    </div>
+
+                    <!-- Student Fees Ledger -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Student Fee Ledger</h4>
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs text-slate-600">
+                                    <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                        <tr>
+                                            <th class="px-4 py-3.5">Student</th>
+                                            <th class="px-4 py-3.5">Fee Title</th>
+                                            <th class="px-4 py-3.5">Total Amount</th>
+                                            <th class="px-4 py-3.5">Amount Paid</th>
+                                            <th class="px-4 py-3.5">Balance Due</th>
+                                            <th class="px-4 py-3.5">Status</th>
+                                            <th class="px-4 py-3.5 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="studentFeesTableBody" class="divide-y divide-slate-100">
+                                        <tr>
+                                            <td colspan="7" class="text-center py-6 text-slate-400">Loading student fee records...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Leave Approvals Queue -->
+                <div id="tab-leaves" class="tab-content space-y-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Faculty Leave Approval Queue</h3>
+                            <p class="text-xs text-slate-500">Authorize or decline staff leave applications with principal remarks</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-600">
+                                <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3.5">Teacher</th>
+                                        <th class="px-4 py-3.5">Leave Type</th>
+                                        <th class="px-4 py-3.5">Duration</th>
+                                        <th class="px-4 py-3.5">Reason</th>
+                                        <th class="px-4 py-3.5">Status</th>
+                                        <th class="px-4 py-3.5">Review Remarks</th>
+                                        <th class="px-4 py-3.5 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leavesTableBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-6 text-slate-400">Loading leave requests...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- ========================================== -->
+            <!-- TEACHER TABS -->
+            <!-- ========================================== -->
+            {% elif is_teacher %}
+
+                <!-- Tab: Teacher Home -->
+                <div id="tab-teacher-home" class="tab-content active space-y-6 fade-in">
+                    <!-- Teacher Welcome & KPI Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">My Assigned Classes</p>
+                                <h3 class="text-2xl font-bold text-slate-800 mt-1" id="teacher-kpi-classes">--</h3>
+                                <p class="text-[11px] text-emerald-600 font-medium mt-1">Class sections</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-shapes"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Students Under Me</p>
+                                <h3 class="text-2xl font-bold text-slate-800 mt-1" id="teacher-kpi-students">--</h3>
+                                <p class="text-[11px] text-indigo-600 font-medium mt-1">Total in my classes</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-user-group"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">My Leave Status</p>
+                                <h3 class="text-2xl font-bold text-slate-800 mt-1" id="teacher-kpi-leaves">--</h3>
+                                <p class="text-[11px] text-amber-600 font-medium mt-1">Pending requests</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-calendar-minus"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Teacher Assigned Schedule Cards -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-calendar-days text-emerald-600"></i> My Assigned Courses & Class Sections
+                            </h3>
+                            <button onclick="switchTab('tab-teacher-attendance')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors">
+                                <i class="fa-solid fa-check"></i>
+                                <span>Go Mark Attendance</span>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="teacherAssignmentsList">
+                            <div class="text-center py-6 text-slate-400 col-span-full">Loading your assignments...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Mark Attendance (Interactive Bulk Marker) -->
+                <div id="tab-teacher-attendance" class="tab-content space-y-4 fade-in">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-800">Live Attendance Register</h3>
+                                <p class="text-xs text-slate-500">Select your class section and record real-time attendance</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <select id="teacherSectionSelect" onchange="loadStudentsForAttendance()"
+                                    class="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 font-semibold">
+                                    <option value="">Select Class & Section</option>
+                                </select>
+                                <input type="date" id="teacherAttDate" onchange="loadStudentsForAttendance()"
+                                    class="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500">
+                                <button type="button" onclick="markAllPresent()" class="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-xl border border-emerald-200 transition-colors">
+                                    <i class="fa-solid fa-check-double mr-1"></i> Mark All Present
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live Student Attendance Form Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-600">
+                                <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3">Roll #</th>
+                                        <th class="px-4 py-3">Student Name</th>
+                                        <th class="px-4 py-3">Admission #</th>
+                                        <th class="px-4 py-3 text-center">Status</th>
+                                        <th class="px-4 py-3">Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendanceMarkerBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="5" class="text-center py-8 text-slate-400">Please choose a class section above to load students.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-100 flex justify-end">
+                            <button onclick="submitBulkAttendance()" id="btnSubmitAttendance" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>Save & Submit Attendance</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Teacher Classes & Students -->
+                <div id="tab-teacher-classes" class="tab-content space-y-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">My Students Roster</h3>
+                            <p class="text-xs text-slate-500">Students enrolled in sections you teach</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-600">
+                                <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3.5">Admission #</th>
+                                        <th class="px-4 py-3.5">Student Name</th>
+                                        <th class="px-4 py-3.5">Class & Section</th>
+                                        <th class="px-4 py-3.5">Roll #</th>
+                                        <th class="px-4 py-3.5">Blood Group</th>
+                                        <th class="px-4 py-3.5">Guardian Contact</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teacherStudentsBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-6 text-slate-400">Loading student roster...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Teacher Leaves -->
+                <div id="tab-teacher-leaves" class="tab-content space-y-4 fade-in">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">My Leave Applications</h3>
+                            <p class="text-xs text-slate-500">Submit requests for Principal review and track real-time status</p>
+                        </div>
+                        <button onclick="openModal('modalApplyLeave')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm flex items-center gap-1.5 self-start sm:self-auto">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Apply for Leave</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-600">
+                                <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3.5">Leave Type</th>
+                                        <th class="px-4 py-3.5">From - To</th>
+                                        <th class="px-4 py-3.5">Reason</th>
+                                        <th class="px-4 py-3.5">Status</th>
+                                        <th class="px-4 py-3.5">Principal Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teacherLeavesBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="5" class="text-center py-6 text-slate-400">Loading leave requests...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- ========================================== -->
+            <!-- STUDENT TABS -->
+            <!-- ========================================== -->
+            {% else %}
+
+                <!-- Tab: Student Profile / ID -->
+                <div id="tab-student-profile" class="tab-content active space-y-6 fade-in">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- Student ID Badge Card -->
+                        <div class="bg-gradient-to-br from-sky-600 via-indigo-600 to-indigo-800 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden">
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fa-solid fa-graduation-cap text-2xl"></i>
+                                    <span class="font-bold text-sm tracking-wider uppercase">Apex Academy</span>
+                                </div>
+                                <span class="px-2 py-0.5 bg-white/20 backdrop-blur-md rounded text-[10px] font-bold">2026-2027</span>
+                            </div>
+
+                            <div class="flex items-center space-x-4 mb-6">
+                                <div class="w-16 h-16 rounded-2xl bg-white text-indigo-700 font-bold text-2xl flex items-center justify-center shadow-lg border-2 border-white/40">
+                                    {{ user.first_name|make_list|first|upper }}
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold">{{ user.get_full_name|default:user.username }}</h3>
+                                    <p class="text-sky-200 text-xs" id="studentCardClass">Loading Class...</p>
+                                    <span class="inline-block mt-1 px-2 py-0.5 bg-emerald-400/20 text-emerald-300 text-[10px] font-semibold rounded-full">
+                                        Active Student
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-xs border-t border-white/20 pt-4">
+                                <div>
+                                    <span class="text-sky-200 text-[10px]">Admission No</span>
+                                    <p class="font-mono font-semibold" id="studentCardAdm">--</p>
+                                </div>
+                                <div>
+                                    <span class="text-sky-200 text-[10px]">Roll Number</span>
+                                    <p class="font-mono font-semibold" id="studentCardRoll">--</p>
+                                </div>
+                                <div>
+                                    <span class="text-sky-200 text-[10px]">Blood Group</span>
+                                    <p class="font-semibold" id="studentCardBlood">--</p>
+                                </div>
+                                <div>
+                                    <span class="text-sky-200 text-[10px]">Date of Birth</span>
+                                    <p class="font-semibold" id="studentCardDob">--</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Personal Stats Quick Overview -->
+                        <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Attendance Rate</p>
+                                    <h3 class="text-3xl font-bold text-slate-800 mt-1" id="student-kpi-att-rate">--%</h3>
+                                    <p class="text-[11px] text-emerald-600 font-medium mt-1" id="student-kpi-att-desc">Present days</p>
+                                </div>
+                                <div class="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-2xl">
+                                    <i class="fa-solid fa-chart-pie"></i>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Outstanding Dues</p>
+                                    <h3 class="text-3xl font-bold text-slate-800 mt-1" id="student-kpi-fees-pending">₹0</h3>
+                                    <p class="text-[11px] text-slate-500 font-medium mt-1" id="student-kpi-fees-desc">Total balance</p>
+                                </div>
+                                <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl">
+                                    <i class="fa-solid fa-wallet"></i>
+                                </div>
+                            </div>
+
+                            <!-- Notice Card -->
+                            <div class="sm:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                <h4 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-2">
+                                    <i class="fa-solid fa-bell text-amber-500"></i> School Notice Board
+                                </h4>
+                                <ul class="text-xs text-slate-600 space-y-2">
+                                    <li class="p-2.5 rounded-xl bg-slate-50 flex items-start gap-2.5">
+                                        <i class="fa-solid fa-circle-info text-sky-500 mt-0.5"></i>
+                                        <div>
+                                            <span class="font-semibold text-slate-800">Mid-Term Examination Schedule</span>
+                                            <p class="text-[11px] text-slate-500">Mid-term examinations will commence next month. Check syllabus in your subjects tab.</p>
+                                        </div>
+                                    </li>
+                                    <li class="p-2.5 rounded-xl bg-slate-50 flex items-start gap-2.5">
+                                        <i class="fa-solid fa-calendar text-emerald-500 mt-0.5"></i>
+                                        <div>
+                                            <span class="font-semibold text-slate-800">Annual Sports Meet</span>
+                                            <p class="text-[11px] text-slate-500">Inter-house athletic trials begin this Friday after class hours.</p>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Tab: My Attendance -->
+                <div id="tab-student-attendance" class="tab-content space-y-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">My Attendance History</h3>
+                            <p class="text-xs text-slate-500">Date-by-date verified attendance recorded by your class teacher</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-600">
+                                <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3.5">Date</th>
+                                        <th class="px-4 py-3.5">Class / Section</th>
+                                        <th class="px-4 py-3.5">Status</th>
+                                        <th class="px-4 py-3.5">Teacher Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentAttendanceTableBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="4" class="text-center py-6 text-slate-400">Loading attendance history...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: My Fees -->
+                <div id="tab-student-fees" class="tab-content space-y-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">My Fees & Payment Receipts</h3>
+                            <p class="text-xs text-slate-500">Tuition fees, transport assessments, and payment history</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="studentFeesCardsContainer">
+                        <div class="text-center py-6 text-slate-400 col-span-full">Loading fee details...</div>
+                    </div>
+                </div>
+
+                <!-- Tab: My Subjects & Teachers -->
+                <div id="tab-student-academics" class="tab-content space-y-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">My Subjects & Assigned Faculty</h3>
+                            <p class="text-xs text-slate-500">Curriculum courses and teachers for your class section</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="studentSubjectsCardsContainer">
+                        <div class="text-center py-6 text-slate-400 col-span-full">Loading subjects...</div>
+                    </div>
+                </div>
+
+            {% endif %}
+
+        </main>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODALS -->
+<!-- ========================================== -->
+
+<!-- Modal: Admit Student (Principal Only) -->
+<div id="modalAdmitStudent" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-indigo-600"></i> Admit New Student
+            </h3>
+            <button onclick="closeModal('modalAdmitStudent')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <form id="formAdmitStudent" onsubmit="submitAdmitStudent(event)" class="space-y-3 text-xs">
+            {% csrf_token %}
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">First Name *</label>
+                    <input type="text" name="first_name" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Last Name</label>
+                    <input type="text" name="last_name" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Username *</label>
+                    <input type="text" name="username" required placeholder="e.g. student.karan" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Password *</label>
+                    <input type="password" name="password" required minlength="8" value="password123" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Admission Number *</label>
+                    <input type="text" name="admission_number" required placeholder="ADM-2026-004" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Date of Birth *</label>
+                    <input type="date" name="date_of_birth" required value="2009-05-15" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Gender *</label>
+                    <select name="gender" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Blood Group</label>
+                    <input type="text" name="blood_group" placeholder="B+" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Admission Date</label>
+                    <input type="date" name="admission_date" value="2026-04-01" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 mb-1">Phone Number</label>
+                <input type="text" name="phone" placeholder="+91 9800000000" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+            </div>
+
+            <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modalAdmitStudent')" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-semibold">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-sm">Save & Admit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Add Teacher (Principal Only) -->
+<div id="modalAddTeacher" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                <i class="fa-solid fa-user-tie text-emerald-600"></i> Register New Faculty
+            </h3>
+            <button onclick="closeModal('modalAddTeacher')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <form id="formAddTeacher" onsubmit="submitAddTeacher(event)" class="space-y-3 text-xs">
+            {% csrf_token %}
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">First Name *</label>
+                    <input type="text" name="first_name" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Last Name</label>
+                    <input type="text" name="last_name" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Username *</label>
+                    <input type="text" name="username" required placeholder="e.g. teacher.amit" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Password *</label>
+                    <input type="password" name="password" required minlength="8" value="password123" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Employee ID *</label>
+                    <input type="text" name="employee_id" required placeholder="TCH-2024-003" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Designation *</label>
+                    <input type="text" name="designation" required value="PGT Teacher" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Phone Number *</label>
+                    <input type="text" name="phone" required placeholder="+91 9876543212" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Date of Birth *</label>
+                    <input type="date" name="date_of_birth" required value="1988-06-20" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Joining Date</label>
+                    <input type="date" name="joining_date" value="2024-06-01" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modalAddTeacher')" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-semibold">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm">Save Faculty</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Record Fee Payment (Principal / Office) -->
+<div id="modalRecordPayment" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                <i class="fa-solid fa-receipt text-emerald-600"></i> Record Fee Payment
+            </h3>
+            <button onclick="closeModal('modalRecordPayment')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <form id="formRecordPayment" onsubmit="submitRecordPayment(event)" class="space-y-3 text-xs">
+            {% csrf_token %}
+            <div>
+                <label class="block font-semibold text-slate-700 mb-1">Student Fee Allocation *</label>
+                <select id="paymentStudentFeeSelect" name="student_fee" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                    <option value="">Select Student Fee</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 mb-1">Payment Amount (₹) *</label>
+                <input type="number" step="0.01" name="amount" required placeholder="e.g. 5000" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Payment Method *</label>
+                    <select name="payment_method" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                        <option value="UPI">UPI / Google Pay</option>
+                        <option value="CASH">Cash</option>
+                        <option value="CARD">Card</option>
+                        <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Date *</label>
+                    <input type="date" name="payment_date" required value="2026-10-02" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 mb-1">Transaction Ref / Cheque #</label>
+                <input type="text" name="transaction_reference" placeholder="e.g. UPI/2026/001928" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+            </div>
+
+            <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modalRecordPayment')" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-semibold">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm">Record & Issue Receipt</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Apply Leave (Teacher) -->
+<div id="modalApplyLeave" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                <i class="fa-solid fa-calendar-minus text-emerald-600"></i> Submit Leave Request
+            </h3>
+            <button onclick="closeModal('modalApplyLeave')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <form id="formApplyLeave" onsubmit="submitApplyLeave(event)" class="space-y-3 text-xs">
+            {% csrf_token %}
+            <div>
+                <label class="block font-semibold text-slate-700 mb-1">Leave Category *</label>
+                <select name="leave_type" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                    <option value="CASUAL">Casual Leave</option>
+                    <option value="SICK">Sick Leave</option>
+                    <option value="EARNED">Earned Leave</option>
+                    <option value="EMERGENCY">Emergency Leave</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Start Date *</label>
+                    <input type="date" name="start_date" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">End Date *</label>
+                    <input type="date" name="end_date" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 mb-1">Reason for Leave *</label>
+                <textarea name="reason" rows="3" required placeholder="State details for the Principal..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"></textarea>
+            </div>
+
+            <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modalApplyLeave')" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-semibold">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm">Submit to Principal</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Live Clock
+    function updateClock() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        const clockEl = document.getElementById('liveClock');
+        const dateEl = document.getElementById('liveDate');
+        if (clockEl) clockEl.textContent = timeStr;
+        if (dateEl) dateEl.textContent = dateStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Active Role & Token Management
+    const CURRENT_ROLE = '{{ role }}';
+    const IS_PRINCIPAL = {% if is_principal %}true{% else %}false{% endif %};
+    const IS_TEACHER = {% if is_teacher %}true{% else %}false{% endif %};
+    const IS_STUDENT = {% if is_student %}true{% else %}false{% endif %};
+    const CSRF_TOKEN = '{{ csrf_token }}';
+
+    let currentAttendanceStudents = [];
+    let currentSections = [];
+
+    // Tab Switching
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+
+        const targetTab = document.getElementById(tabId);
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
+
+        // Highlight matching link
+        const matchingLink = Array.from(document.querySelectorAll('.sidebar-link')).find(l => l.getAttribute('onclick')?.includes(tabId));
+        if (matchingLink) {
+            matchingLink.classList.add('active');
+        }
+
+        // On mobile close sidebar
+        const sidebar = document.getElementById('sidebar');
+        if (window.innerWidth < 1024 && !sidebar.classList.contains('-translate-x-full')) {
+            sidebar.classList.add('-translate-x-full');
+        }
+    }
+
+    function toggleMobileSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('-translate-x-full');
+    }
+
+    function openModal(id) {
+        document.getElementById(id)?.classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id)?.classList.add('hidden');
+    }
+
+    function showLockedFeature(featureName, requiredRole) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Permission Restricted',
+            html: `<b>${featureName}</b> requires <b>${requiredRole}</b> authorization.<br><span class="text-xs text-slate-500">Your current role does not have write access to this ledger.</span>`,
+            confirmButtonColor: '#4f46e5'
+        });
+    }
+
+    // Role Demo Switcher API
+    async function switchRole(targetRole) {
+        try {
+            Swal.fire({
+                title: `Switching to ${targetRole}...`,
+                text: 'Updating active session and authorization scopes',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            const res = await fetch('/api/accounts/switch-demo/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN,
+                },
+                body: JSON.stringify({ role: targetRole })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem('auth_token', data.token);
+                localStorage.setItem('user_role', data.role);
+                window.location.reload();
+            } else {
+                Swal.fire('Error', data.detail || 'Could not switch persona.', 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Network error during role switch.', 'error');
+        }
+    }
+
+    // Fetch Helper with Token & CSRF
+    async function apiFetch(url, options = {}) {
+        const token = localStorage.getItem('auth_token');
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN,
+            ...(options.headers || {})
+        };
+        if (token) {
+            headers['Authorization'] = `Token ${token}`;
+        }
+        return fetch(url, { credentials: 'same-origin', credentials: 'include', ...options, headers });
+    }
+
+    // Main Data Loading
+    async function refreshData() {
+        const icon = document.getElementById('refreshIcon');
+        if (icon) icon.classList.add('fa-spin');
+
+        try {
+            // Load live dashboard stats
+            const statsRes = await apiFetch('/api/accounts/stats/');
+            if (statsRes.ok) {
+                const sData = await statsRes.json();
+                populateStats(sData.stats);
+            }
+
+            if (IS_PRINCIPAL) {
+                await Promise.all([
+                    loadStudents(),
+                    loadTeachers(),
+                    loadAcademics(),
+                    loadPrincipalAttendance(),
+                    loadFees(),
+                    loadLeaves()
+                ]);
+            } else if (IS_TEACHER) {
+                await Promise.all([
+                    loadTeacherDashboard(),
+                    loadTeacherRoster(),
+                    loadTeacherLeaves()
+                ]);
+            } else if (IS_STUDENT) {
+                await Promise.all([
+                    loadStudentDashboard(),
+                    loadStudentAttendance(),
+                    loadStudentFees(),
+                    loadStudentSubjects()
+                ]);
+            }
+        } catch (err) {
+            console.error('Error refreshing data:', err);
+        } finally {
+            if (icon) setTimeout(() => icon.classList.remove('fa-spin'), 400);
+        }
+    }
+
+    function populateStats(stats) {
+        if (!stats) return;
+
+        if (IS_PRINCIPAL) {
+            if (document.getElementById('kpi-students')) document.getElementById('kpi-students').textContent = stats.total_students ?? 0;
+            if (document.getElementById('kpi-teachers')) document.getElementById('kpi-teachers').textContent = stats.total_teachers ?? 0;
+            if (document.getElementById('kpi-attendance-rate')) document.getElementById('kpi-attendance-rate').textContent = `${stats.attendance_rate_today ?? 0}%`;
+            if (document.getElementById('kpi-att-sub')) document.getElementById('kpi-att-sub').textContent = `${stats.present_today ?? 0} present / ${stats.absent_today ?? 0} absent`;
+            if (document.getElementById('kpi-pending-leaves')) document.getElementById('kpi-pending-leaves').textContent = stats.pending_leave_requests ?? 0;
+
+            const badge = document.getElementById('navLeaveBadge');
+            if (badge) {
+                if (stats.pending_leave_requests > 0) {
+                    badge.textContent = stats.pending_leave_requests;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+
+            if (document.getElementById('fee-total-expected')) document.getElementById('fee-total-expected').textContent = `₹${(stats.total_fee_expected || 0).toLocaleString()}`;
+            if (document.getElementById('fee-total-collected')) document.getElementById('fee-total-collected').textContent = `₹${(stats.total_fee_collected || 0).toLocaleString()}`;
+            if (document.getElementById('fee-total-pending')) document.getElementById('fee-total-pending').textContent = `₹${(stats.total_fee_pending || 0).toLocaleString()}`;
+
+            const pct = stats.total_fee_expected > 0 ? Math.min(100, Math.round((stats.total_fee_collected / stats.total_fee_expected) * 100)) : 0;
+            const bar = document.getElementById('feeProgressBar');
+            if (bar) bar.style.width = `${pct}%`;
+
+            renderAttendanceChart(stats.present_today || 0, stats.absent_today || 0);
+
+        } else if (IS_TEACHER) {
+            if (document.getElementById('teacher-kpi-classes')) document.getElementById('teacher-kpi-classes').textContent = stats.assigned_classes_count ?? 0;
+            if (document.getElementById('teacher-kpi-students')) document.getElementById('teacher-kpi-students').textContent = stats.assigned_students_count ?? 0;
+            if (document.getElementById('teacher-kpi-leaves')) document.getElementById('teacher-kpi-leaves').textContent = stats.my_pending_leaves ?? 0;
+
+        } else if (IS_STUDENT) {
+            if (document.getElementById('student-kpi-att-rate')) document.getElementById('student-kpi-att-rate').textContent = `${stats.attendance_rate ?? 0}%`;
+            if (document.getElementById('student-kpi-att-desc')) document.getElementById('student-kpi-att-desc').textContent = `${stats.present_days ?? 0} of ${stats.total_days ?? 0} school days`;
+            if (document.getElementById('student-kpi-fees-pending')) document.getElementById('student-kpi-fees-pending').textContent = `₹${(stats.pending_fee ?? 0).toLocaleString()}`;
+            if (document.getElementById('student-kpi-fees-desc')) document.getElementById('student-kpi-fees-desc').textContent = `Paid ₹${(stats.paid_fee ?? 0).toLocaleString()} of ₹${(stats.total_fee ?? 0).toLocaleString()}`;
+        }
+    }
+
+    let attChartInstance = null;
+    function renderAttendanceChart(present, absent) {
+        const canvas = document.getElementById('attendanceChart');
+        if (!canvas) return;
+
+        const total = present + absent;
+        const pCount = total === 0 ? 1 : present;
+        const aCount = total === 0 ? 0 : absent;
+
+        if (attChartInstance) attChartInstance.destroy();
+
+        attChartInstance = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Present / Half-Day', 'Absent'],
+                datasets: [{
+                    data: [pCount, aCount],
+                    backgroundColor: ['#10b981', '#f43f5e'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11, family: 'Inter' } } }
+                },
+                cutout: '70%'
+            }
+        });
+    }
+
+    // ==========================================
+    // PRINCIPAL FUNCTIONS
+    // ==========================================
+    async function loadStudents() {
+        const search = document.getElementById('studentSearchInput')?.value || '';
+        const res = await apiFetch(`/api/students/?search=${encodeURIComponent(search)}`);
+        if (!res.ok) return;
+        const students = await res.json();
+        const tbody = document.getElementById('studentsTableBody');
+        if (!tbody) return;
+
+        if (students.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-400">No students found.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = students.map(s => {
+            const enr = s.current_enrollment;
+            const classText = enr ? `${enr.class_name} - ${enr.section}` : '<span class="text-slate-400">Not enrolled</span>';
+            const roll = enr ? enr.roll_number : '-';
+
+            return `
+                <tr class="hover:bg-slate-50/70 transition-colors">
+                    <td class="px-4 py-3 font-mono font-semibold text-slate-700">${s.admission_number}</td>
+                    <td class="px-4 py-3 font-semibold text-slate-900">${s.student_name}</td>
+                    <td class="px-4 py-3">${classText}</td>
+                    <td class="px-4 py-3 font-mono">${roll}</td>
+                    <td class="px-4 py-3">${s.gender} / ${s.blood_group || '-'}</td>
+                    <td class="px-4 py-3">${s.phone || '-'}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            ${s.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                        <button onclick="viewStudentDetails(${s.id})" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function loadTeachers() {
+        const res = await apiFetch('/api/teachers/');
+        if (!res.ok) return;
+        const teachers = await res.json();
+        const container = document.getElementById('teachersCardsContainer');
+        if (!container) return;
+
+        container.innerHTML = teachers.map(t => {
+            const assignments = t.assignments || [];
+            const badges = assignments.map(a => `
+                <span class="inline-block px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100">
+                    ${a.subject_name} (${a.class_name}-${a.section_name})
+                </span>
+            `).join(' ');
+
+            return `
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 font-bold flex items-center justify-center">
+                                    ${t.teacher_name ? t.teacher_name.charAt(0) : 'T'}
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-sm">${t.teacher_name}</h4>
+                                    <p class="text-[11px] text-slate-400">${t.designation || 'Teacher'}</p>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-100 text-emerald-700">
+                                ${t.status}
+                            </span>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
+                            <p><span class="text-slate-400">Employee ID:</span> <span class="font-mono font-semibold">${t.employee_id}</span></p>
+                            <p><span class="text-slate-400">Contact:</span> ${t.phone || '-'}</p>
+                            <p><span class="text-slate-400">Joined:</span> ${t.joining_date || '-'}</p>
+                        </div>
+
+                        <div class="mt-3">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Assigned Subjects & Classes:</p>
+                            <div class="flex flex-wrap gap-1">
+                                ${badges || '<span class="text-slate-400 text-xs">No assignments yet</span>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function loadAcademics() {
+        const [classesRes, subjectsRes] = await Promise.all([
+            apiFetch('/api/academics/classes/'),
+            apiFetch('/api/academics/subjects/')
+        ]);
+
+        if (classesRes.ok) {
+            const classes = await classesRes.json();
+            const container = document.getElementById('classesListContainer');
+            if (container) {
+                container.innerHTML = classes.map(c => `
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
+                                ${c.display_order}
+                            </span>
+                            <span class="font-semibold text-slate-800 text-xs">${c.name}</span>
+                        </div>
+                        <span class="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 text-slate-600 rounded-full">
+                            Active Curriculum
+                        </span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        if (subjectsRes.ok) {
+            const subjects = await subjectsRes.json();
+            const container = document.getElementById('subjectsListContainer');
+            if (container) {
+                container.innerHTML = subjects.map(s => `
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                        <div>
+                            <span class="font-semibold text-slate-800 text-xs">${s.name}</span>
+                            <p class="text-[10px] text-slate-400">${s.description || 'Core Course'}</p>
+                        </div>
+                        <span class="font-mono text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
+                            ${s.code}
+                        </span>
+                    </div>
+                `).join('');
+            }
+        }
+    }
+
+    async function loadPrincipalAttendance() {
+        const dateInput = document.getElementById('principalAttDateInput');
+        const selectedDate = dateInput?.value || new Date().toISOString().split('T')[0];
+        if (dateInput && !dateInput.value) dateInput.value = selectedDate;
+
+        const res = await apiFetch(`/api/attendance/student-attendance/?date=${selectedDate}`);
+        if (!res.ok) return;
+        const records = await res.json();
+        const tbody = document.getElementById('principalAttendanceTableBody');
+        if (!tbody) return;
+
+        if (records.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">No attendance marked on ${selectedDate}.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = records.map(r => {
+            const statusClass = {
+                'PRESENT': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'ABSENT': 'bg-rose-50 text-rose-700 border-rose-200',
+                'LATE': 'bg-amber-50 text-amber-700 border-amber-200',
+                'HALF_DAY': 'bg-sky-50 text-sky-700 border-sky-200',
+            }[r.status] || 'bg-slate-50 text-slate-700 border-slate-200';
+
+            return `
+                <tr class="hover:bg-slate-50/70 transition-colors">
+                    <td class="px-4 py-3 font-mono">${r.date}</td>
+                    <td class="px-4 py-3 font-mono font-semibold text-slate-700">${r.student}</td>
+                    <td class="px-4 py-3 font-semibold text-slate-800">${r.student_name}</td>
+                    <td class="px-4 py-3">${r.class_name} - ${r.section_name}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusClass}">
+                            ${r.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-500">${r.remarks || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function loadFees() {
+        const [structRes, feesRes] = await apiFetch('/api/fees/structures/').then(r => r.json()).catch(() => []),
+              feesData = await apiFetch('/api/fees/student-fees/').then(r => r.json()).catch(() => []);
+
+        // Fee Structures
+        const structContainer = document.getElementById('feeStructuresCards');
+        if (structContainer && Array.isArray(structRes)) {
+            structContainer.innerHTML = structRes.map(fs => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${fs.fee_type}</span>
+                        <h4 class="font-bold text-slate-800 text-sm mt-0.5">${fs.name}</h4>
+                        <p class="text-xs text-slate-500 mt-1">Due: ${fs.due_date}</p>
+                    </div>
+                    <span class="text-base font-bold text-indigo-600">₹${Number(fs.amount).toLocaleString()}</span>
+                </div>
+            `).join('');
+        }
+
+        // Student Fees
+        const tbody = document.getElementById('studentFeesTableBody');
+        const paymentSelect = document.getElementById('paymentStudentFeeSelect');
+        if (paymentSelect) paymentSelect.innerHTML = '<option value="">Select Student Fee</option>';
+
+        if (tbody && Array.isArray(feesData)) {
+            if (feesData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">No student fee records found.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = feesData.map(sf => {
+                const total = Number(sf.amount || 0);
+                const paid = (sf.payments || []).reduce((acc, p) => acc + Number(p.amount || 0), 0);
+                const balance = Math.max(0, total - paid);
+
+                const statusBadge = {
+                    'PAID': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                    'PARTIAL': 'bg-amber-50 text-amber-700 border-amber-200',
+                    'PENDING': 'bg-rose-50 text-rose-700 border-rose-200',
+                    'WAIVED': 'bg-slate-50 text-slate-700 border-slate-200',
+                }[sf.status] || 'bg-slate-50 text-slate-700 border-slate-200';
+
+                if (paymentSelect && balance > 0) {
+                    paymentSelect.innerHTML += `<option value="${sf.id}">${sf.student_name} - ${sf.fee_structure_name} (Due: ₹${balance})</option>`;
+                }
+
+                return `
+                    <tr class="hover:bg-slate-50/70 transition-colors">
+                        <td class="px-4 py-3 font-semibold text-slate-800">${sf.student_name}</td>
+                        <td class="px-4 py-3 font-medium">${sf.fee_structure_name}</td>
+                        <td class="px-4 py-3 font-mono font-semibold">₹${total.toLocaleString()}</td>
+                        <td class="px-4 py-3 font-mono font-semibold text-emerald-600">₹${paid.toLocaleString()}</td>
+                        <td class="px-4 py-3 font-mono font-semibold text-rose-600">₹${balance.toLocaleString()}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusBadge}">
+                                ${sf.status}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <button onclick="prefillPaymentModal(${sf.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-semibold border border-emerald-200">
+                                Pay
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
+
+    async function loadLeaves() {
+        const res = await apiFetch('/api/leave/teacher-leaves/');
+        if (!res.ok) return;
+        const leaves = await res.json();
+        const tbody = document.getElementById('leavesTableBody');
+        if (!tbody) return;
+
+        if (leaves.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">No teacher leave requests on file.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = leaves.map(l => {
+            const isPending = l.status === 'PENDING';
+            const statusBadge = {
+                'APPROVED': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'REJECTED': 'bg-rose-50 text-rose-700 border-rose-200',
+                'PENDING': 'bg-amber-50 text-amber-700 border-amber-200',
+            }[l.status] || 'bg-slate-50 text-slate-700 border-slate-200';
+
+            const actions = isPending ? `
+                <div class="flex items-center justify-end gap-1.5">
+                    <button onclick="reviewLeave(${l.id}, 'approve')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors">
+                        Approve
+                    </button>
+                    <button onclick="reviewLeave(${l.id}, 'reject')" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors">
+                        Reject
+                    </button>
+                </div>
+            ` : `<span class="text-slate-400 text-xs italic">Reviewed</span>`;
+
+            return `
+                <tr class="hover:bg-slate-50/70 transition-colors">
+                    <td class="px-4 py-3 font-semibold text-slate-800">${l.teacher_name}</td>
+                    <td class="px-4 py-3"><span class="font-medium">${l.leave_type}</span></td>
+                    <td class="px-4 py-3 font-mono text-[11px]">${l.start_date} to ${l.end_date}</td>
+                    <td class="px-4 py-3 text-slate-600 max-w-xs truncate">${l.reason}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusBadge}">
+                            ${l.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-500 text-[11px]">${l.review_remarks || '-'}</td>
+                    <td class="px-4 py-3 text-right">${actions}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function reviewLeave(leaveId, actionType) {
+        const { value: remarks } = await Swal.fire({
+            title: `${actionType === 'approve' ? 'Approve' : 'Reject'} Leave Request`,
+            input: 'text',
+            inputLabel: 'Remarks for teacher',
+            inputValue: actionType === 'approve' ? 'Approved by Principal' : 'Declined due to academic scheduling',
+            showCancelButton: true,
+            confirmButtonColor: actionType === 'approve' ? '#10b981' : '#f43f5e',
+            confirmButtonText: actionType === 'approve' ? 'Yes, Approve' : 'Yes, Reject'
+        });
+
+        if (remarks !== undefined) {
+            try {
+                const res = await apiFetch(`/api/leave/teacher-leaves/${leaveId}/${actionType}/`, {
+                    method: 'POST',
+                    body: JSON.stringify({ review_remarks: remarks })
+                });
+
+                if (res.ok) {
+                    Swal.fire('Success', `Leave request has been ${actionType}d.`, 'success');
+                    refreshData();
+                } else {
+                    const err = await res.json();
+                    Swal.fire('Error', err.detail || 'Failed to update leave.', 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Connection error.', 'error');
+            }
+        }
+    }
+
+    // Submit Forms
+    async function submitAdmitStudent(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await apiFetch('/api/students/', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeModal('modalAdmitStudent');
+                form.reset();
+                Swal.fire('Success', 'Student admitted and registered successfully!', 'success');
+                refreshData();
+            } else {
+                const err = await res.json();
+                Swal.fire('Error', Object.values(err).flat().join(', '), 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Failed to register student.', 'error');
+        }
+    }
+
+    async function submitAddTeacher(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await apiFetch('/api/teachers/', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeModal('modalAddTeacher');
+                form.reset();
+                Swal.fire('Success', 'Teacher faculty member registered successfully!', 'success');
+                refreshData();
+            } else {
+                const err = await res.json();
+                Swal.fire('Error', Object.values(err).flat().join(', '), 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Failed to register teacher.', 'error');
+        }
+    }
+
+    function prefillPaymentModal(studentFeeId) {
+        openModal('modalRecordPayment');
+        const sel = document.getElementById('paymentStudentFeeSelect');
+        if (sel) sel.value = studentFeeId;
+    }
+
+    async function submitRecordPayment(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await apiFetch('/api/fees/payments/', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeModal('modalRecordPayment');
+                form.reset();
+                Swal.fire('Payment Recorded', 'Fee payment recorded and student ledger updated.', 'success');
+                refreshData();
+            } else {
+                const err = await res.json();
+                Swal.fire('Error', Object.values(err).flat().join(', '), 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Failed to record payment.', 'error');
+        }
+    }
+
+    // ==========================================
+    // TEACHER FUNCTIONS
+    // ==========================================
+    async function loadTeacherDashboard() {
+        const meRes = await apiFetch('/api/accounts/me/');
+        if (!meRes.ok) return;
+        const meData = await meRes.json();
+        const tp = meData.teacher_profile;
+        if (!tp) return;
+
+        const assignments = tp.assignments || [];
+        const container = document.getElementById('teacherAssignmentsList');
+        const select = document.getElementById('teacherSectionSelect');
+
+        if (container) {
+            if (assignments.length === 0) {
+                container.innerHTML = `<div class="text-center py-6 text-slate-400 col-span-full">No active classes assigned yet.</div>`;
+            } else {
+                container.innerHTML = assignments.map(a => `
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-700">
+                                    ${a.subject_code}
+                                </span>
+                                ${a.is_class_teacher ? '<span class="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">Class Teacher</span>' : ''}
+                            </div>
+                            <h4 class="font-bold text-slate-800 text-sm mt-2">${a.subject_name}</h4>
+                            <p class="text-xs text-slate-500 font-medium">${a.class_name} - ${a.section_name}</p>
+                        </div>
+                        <button onclick="startMarkAttendanceFor(${a.class_id}, ${a.section_id})" class="mt-4 w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-clipboard-check text-xs"></i> Mark Today's Attendance
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        if (select) {
+            // Populate select options
+            const uniqueSections = [];
+            const seen = new Set();
+            assignments.forEach(a => {
+                const key = `${a.class_id}-${a.section_id}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueSections.push(a);
+                }
+            });
+
+            select.innerHTML = '<option value="">Select Class & Section</option>' + uniqueSections.map(s => `
+                <option value="${s.class_id}:${s.section_id}">${s.class_name} - ${s.section_name}</option>
+            `).join('');
+
+            if (uniqueSections.length > 0 && !select.value) {
+                select.value = `${uniqueSections[0].class_id}:${uniqueSections[0].section_id}`;
+                loadStudentsForAttendance();
+            }
+        }
+
+        const attDateInput = document.getElementById('teacherAttDate');
+        if (attDateInput && !attDateInput.value) {
+            attDateInput.value = new Date().toISOString().split('T')[0];
+        }
+    }
+
+    function startMarkAttendanceFor(classId, sectionId) {
+        switchTab('tab-teacher-attendance');
+        const sel = document.getElementById('teacherSectionSelect');
+        if (sel) {
+            sel.value = `${classId}:${sectionId}`;
+            loadStudentsForAttendance();
+        }
+    }
+
+    async function loadStudentsForAttendance() {
+        const sel = document.getElementById('teacherSectionSelect')?.value;
+        const tbody = document.getElementById('attendanceMarkerBody');
+        if (!sel || !tbody) return;
+
+        const [classId, sectionId] = sel.split(':');
+        const attDate = document.getElementById('teacherAttDate')?.value || new Date().toISOString().split('T')[0];
+
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">Loading student roster and existing records...</td></tr>`;
+
+        // Fetch students in this section and attendance on this date
+        const [enrRes, attRes] = await Promise.all([
+            apiFetch(`/api/students/enrollments/?section_id=${sectionId}`),
+            apiFetch(`/api/attendance/student-attendance/?section_id=${sectionId}&date=${attDate}`)
+        ]);
+
+        const enrollments = enrRes.ok ? await enrRes.json() : [];
+        const attendance = attRes.ok ? await attRes.json() : [];
+
+        const existingMap = {};
+        attendance.forEach(a => {
+            existingMap[a.student] = a;
+        });
+
+        currentAttendanceStudents = enrollments;
+
+        if (enrollments.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">No students enrolled in this section.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = enrollments.map(e => {
+            const existing = existingMap[e.student];
+            const currentStatus = existing ? existing.status : 'PRESENT';
+            const currentRemarks = existing ? existing.remarks : '';
+
+            return `
+                <tr class="hover:bg-slate-50 transition-colors" data-student-id="${e.student}">
+                    <td class="px-4 py-3 font-mono font-semibold text-slate-700">${e.roll_number}</td>
+                    <td class="px-4 py-3 font-semibold text-slate-900">${e.student_name}</td>
+                    <td class="px-4 py-3 font-mono text-slate-500">${e.student}</td>
+                    <td class="px-4 py-3 text-center">
+                        <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+                            <label class="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer has-[:checked]:bg-emerald-600 has-[:checked]:text-white transition-all text-slate-600">
+                                <input type="radio" name="att_${e.student}" value="PRESENT" class="hidden" ${currentStatus === 'PRESENT' ? 'checked' : ''}>
+                                P
+                            </label>
+                            <label class="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer has-[:checked]:bg-rose-600 has-[:checked]:text-white transition-all text-slate-600">
+                                <input type="radio" name="att_${e.student}" value="ABSENT" class="hidden" ${currentStatus === 'ABSENT' ? 'checked' : ''}>
+                                A
+                            </label>
+                            <label class="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer has-[:checked]:bg-amber-600 has-[:checked]:text-white transition-all text-slate-600">
+                                <input type="radio" name="att_${e.student}" value="LATE" class="hidden" ${currentStatus === 'LATE' ? 'checked' : ''}>
+                                L
+                            </label>
+                            <label class="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer has-[:checked]:bg-sky-600 has-[:checked]:text-white transition-all text-slate-600">
+                                <input type="radio" name="att_${e.student}" value="HALF_DAY" class="hidden" ${currentStatus === 'HALF_DAY' ? 'checked' : ''}>
+                                HD
+                            </label>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="text" name="remarks_${e.student}" value="${currentRemarks}" placeholder="Optional note..."
+                            class="px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg w-full focus:bg-white focus:outline-none">
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function markAllPresent() {
+        document.querySelectorAll('#attendanceMarkerBody input[type="radio"][value="PRESENT"]').forEach(r => {
+            r.checked = true;
+            // trigger css refresh
+            r.dispatchEvent(new Event('change'));
+        });
+    }
+
+    async function submitBulkAttendance() {
+        const sel = document.getElementById('teacherSectionSelect')?.value;
+        if (!sel) {
+            Swal.fire('Notice', 'Please choose a class section.', 'info');
+            return;
+        }
+
+        const [classId, sectionId] = sel.split(':');
+        const attDate = document.getElementById('teacherAttDate')?.value || new Date().toISOString().split('T')[0];
+
+        // Gather records from rows
+        const records = [];
+        const rows = document.querySelectorAll('#attendanceMarkerBody tr[data-student-id]');
+
+        rows.forEach(row => {
+            const studentId = row.getAttribute('data-student-id');
+            const checkedRadio = row.querySelector(`input[name="att_${studentId}"]:checked`);
+            const status = checkedRadio ? checkedRadio.value : 'PRESENT';
+            const remarksInput = row.querySelector(`input[name="remarks_${studentId}"]`);
+            const remarks = remarksInput ? remarksInput.value.trim() : '';
+
+            records.push({
+                student_id: Number(studentId),
+                status: status,
+                remarks: remarks
+            });
+        });
+
+        if (records.length === 0) {
+            Swal.fire('Empty Roster', 'No student attendance records to submit.', 'info');
+            return;
+        }
+
+        const btn = document.getElementById('btnSubmitAttendance');
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Submitting...`;
+
+        try {
+            // Find academic year from first enrollment
+            const academicYearId = currentAttendanceStudents[0]?.academic_year || 1;
+
+            const res = await apiFetch('/api/attendance/bulk-mark/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    date: attDate,
+                    academic_year_id: academicYearId,
+                    school_class_id: Number(classId),
+                    section_id: Number(sectionId),
+                    records: records
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Attendance Saved!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                refreshData();
+            } else {
+                const err = await res.json();
+                Swal.fire('Error', err.detail || 'Could not record attendance.', 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Connection error.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> <span>Save & Submit Attendance</span>`;
+        }
+    }
+
+    async function loadTeacherRoster() {
+        const res = await apiFetch('/api/students/');
+        if (!res.ok) return;
+        const students = await res.json();
+        const tbody = document.getElementById('teacherStudentsBody');
+        if (!tbody) return;
+
+        if (students.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">No students found in your assigned sections.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = students.map(s => {
+            const enr = s.current_enrollment;
+            const classText = enr ? `${enr.class_name} - ${enr.section}` : '-';
+            const roll = enr ? enr.roll_number : '-';
+
+            return `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-3 font-mono font-semibold text-slate-700">${s.admission_number}</td>
+                    <td class="px-4 py-3 font-semibold text-slate-900">${s.student_name}</td>
+                    <td class="px-4 py-3">${classText}</td>
+                    <td class="px-4 py-3 font-mono">${roll}</td>
+                    <td class="px-4 py-3">${s.blood_group || '-'}</td>
+                    <td class="px-4 py-3">${s.phone || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function loadTeacherLeaves() {
+        const res = await apiFetch('/api/leave/teacher-leaves/');
+        if (!res.ok) return;
+        const leaves = await res.json();
+        const tbody = document.getElementById('teacherLeavesBody');
+        if (!tbody) return;
+
+        if (leaves.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">You haven't submitted any leave applications yet.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = leaves.map(l => {
+            const badge = {
+                'APPROVED': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'REJECTED': 'bg-rose-50 text-rose-700 border-rose-200',
+                'PENDING': 'bg-amber-50 text-amber-700 border-amber-200',
+            }[l.status] || 'bg-slate-50 text-slate-700 border-slate-200';
+
+            return `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-3 font-semibold text-slate-800">${l.leave_type}</td>
+                    <td class="px-4 py-3 font-mono text-[11px]">${l.start_date} to ${l.end_date}</td>
+                    <td class="px-4 py-3 text-slate-600">${l.reason}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badge}">
+                            ${l.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-500 text-[11px]">${l.review_remarks || '<span class="text-slate-400 italic">Awaiting Principal review</span>'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function submitApplyLeave(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await apiFetch('/api/leave/teacher-leaves/', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeModal('modalApplyLeave');
+                form.reset();
+                Swal.fire('Submitted', 'Your leave request has been sent to the Principal.', 'success');
+                refreshData();
+            } else {
+                const err = await res.json();
+                Swal.fire('Error', Object.values(err).flat().join(', '), 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Failed to submit leave.', 'error');
+        }
+    }
+
+    // ==========================================
+    // STUDENT FUNCTIONS
+    // ==========================================
+    async function loadStudentDashboard() {
+        const meRes = await apiFetch('/api/accounts/me/');
+        if (!meRes.ok) return;
+        const meData = await meRes.json();
+        const sp = meData.student_profile;
+        if (!sp) return;
+
+        const enr = sp.current_enrollment;
+        if (enr) {
+            if (document.getElementById('studentCardClass')) document.getElementById('studentCardClass').textContent = `${enr.class_name} - ${enr.section_name}`;
+            if (document.getElementById('studentCardRoll')) document.getElementById('studentCardRoll').textContent = enr.roll_number;
+        }
+
+        if (document.getElementById('studentCardAdm')) document.getElementById('studentCardAdm').textContent = sp.admission_number;
+        if (document.getElementById('studentCardBlood')) document.getElementById('studentCardBlood').textContent = sp.blood_group || '-';
+        if (document.getElementById('studentCardDob')) document.getElementById('studentCardDob').textContent = sp.date_of_birth || '-';
+    }
+
+    async function loadStudentAttendance() {
+        const res = await apiFetch('/api/attendance/student-attendance/');
+        if (!res.ok) return;
+        const records = await res.json();
+        const tbody = document.getElementById('studentAttendanceTableBody');
+        if (!tbody) return;
+
+        if (records.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-400">No attendance records found yet.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = records.map(r => {
+            const badge = {
+                'PRESENT': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'ABSENT': 'bg-rose-50 text-rose-700 border-rose-200',
+                'LATE': 'bg-amber-50 text-amber-700 border-amber-200',
+                'HALF_DAY': 'bg-sky-50 text-sky-700 border-sky-200',
+            }[r.status] || 'bg-slate-50 text-slate-700 border-slate-200';
+
+            return `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-3 font-mono font-semibold text-slate-700">${r.date}</td>
+                    <td class="px-4 py-3">${r.class_name} - ${r.section_name}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badge}">
+                            ${r.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-500">${r.remarks || 'Regular attendance'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function loadStudentFees() {
+        const res = await apiFetch('/api/fees/student-fees/');
+        if (!res.ok) return;
+        const fees = await res.json();
+        const container = document.getElementById('studentFeesCardsContainer');
+        if (!container) return;
+
+        if (fees.length === 0) {
+            container.innerHTML = `<div class="text-center py-6 text-slate-400 col-span-full">No fees assigned.</div>`;
+            return;
+        }
+
+        container.innerHTML = fees.map(f => {
+            const total = Number(f.amount || 0);
+            const payments = f.payments || [];
+            const paid = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+            const balance = Math.max(0, total - paid);
+
+            const badge = {
+                'PAID': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'PARTIAL': 'bg-amber-50 text-amber-700 border-amber-200',
+                'PENDING': 'bg-rose-50 text-rose-700 border-rose-200',
+            }[f.status] || 'bg-slate-50 text-slate-700 border-slate-200';
+
+            const receiptList = payments.length > 0 ? payments.map(p => `
+                <div class="flex items-center justify-between text-[11px] py-1 border-t border-slate-100">
+                    <span class="text-slate-500">${p.payment_date} (${p.payment_method})</span>
+                    <span class="font-mono font-semibold text-emerald-600">₹${Number(p.amount).toLocaleString()}</span>
+                </div>
+            `).join('') : '<p class="text-[11px] text-slate-400 italic">No payments recorded yet</p>';
+
+            return `
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tuition Invoice</span>
+                            <h4 class="font-bold text-slate-800 text-sm mt-0.5">${f.fee_structure_name}</h4>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badge}">
+                            ${f.status}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 text-xs py-2 bg-slate-50 rounded-xl px-3 border border-slate-100">
+                        <div>
+                            <span class="text-[10px] text-slate-400">Total</span>
+                            <p class="font-bold text-slate-800">₹${total.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400">Paid</span>
+                            <p class="font-bold text-emerald-600">₹${paid.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400">Due Balance</span>
+                            <p class="font-bold text-rose-600">₹${balance.toLocaleString()}</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Payment Receipts:</p>
+                        ${receiptList}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function loadStudentSubjects() {
+        // Retrieve subjects via assignments for student's section or all subjects
+        const [subRes, teachRes] = await Promise.all([
+            apiFetch('/api/academics/subjects/'),
+            apiFetch('/api/teachers/assignments/')
+        ]);
+
+        const subjects = subRes.ok ? await subRes.json() : [];
+        const assignments = teachRes.ok ? await teachRes.json() : [];
+        const container = document.getElementById('studentSubjectsCardsContainer');
+        if (!container) return;
+
+        if (subjects.length === 0) {
+            container.innerHTML = `<div class="text-center py-6 text-slate-400 col-span-full">No subjects found.</div>`;
+            return;
+        }
+
+        const assignMap = {};
+        assignments.forEach(a => {
+            assignMap[a.subject] = a;
+        });
+
+        container.innerHTML = subjects.map(s => {
+            const assign = assignMap[s.id];
+            const teacherName = assign ? 'Assigned Faculty' : 'Academic Faculty';
+
+            return `
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 font-mono">
+                            ${s.code}
+                        </span>
+                        <span class="text-xs text-slate-400"><i class="fa-solid fa-book text-slate-300"></i></span>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${s.name}</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">${s.description || 'Standard Course'}</p>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-slate-400">Academic Year</span>
+                        <span class="font-semibold text-slate-700">2026-2027</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Initialize Dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshData();
+    });
+</script>
+{% endblock %}
